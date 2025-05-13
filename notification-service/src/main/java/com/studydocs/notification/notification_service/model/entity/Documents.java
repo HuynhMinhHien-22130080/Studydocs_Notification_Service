@@ -14,4 +14,7 @@ public class Documents {
     private String userName;
     private String title;
     private Timestamp createAt;
+    public String getDescription() {
+        return "Tài liệu có mã số: " + documentId + " với tiêu đề \"" + title + "\" được tạo bởi " + userName + " vào lúc " + createAt.toString() + ".";
+    }
 }

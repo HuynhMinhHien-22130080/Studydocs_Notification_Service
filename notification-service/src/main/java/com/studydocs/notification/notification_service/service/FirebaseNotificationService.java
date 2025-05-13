@@ -3,12 +3,12 @@ package com.studydocs.notification.notification_service.service;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+@Service
 public class FirebaseNotificationService {
     private final FirebaseMessaging firebaseMessaging;
 
-    @Autowired
     public FirebaseNotificationService(FirebaseMessaging firebaseMessaging) {
         this.firebaseMessaging = firebaseMessaging;
     }
