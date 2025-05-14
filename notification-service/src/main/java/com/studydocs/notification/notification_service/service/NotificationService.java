@@ -4,13 +4,13 @@ import com.studydocs.notification.notification_service.dao.DocumentDao;
 import com.studydocs.notification.notification_service.dao.UserDao;
 import com.studydocs.notification.notification_service.model.entity.DeviceToken;
 import com.studydocs.notification.notification_service.model.entity.Documents;
+import com.studydocs.notification.notification_service.model.entity.Followers;
 import com.studydocs.notification.notification_service.model.event.DocumentUploadedEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 
 @Service
@@ -35,19 +35,36 @@ public class NotificationService {
         this.activeMonthsThreshold = activeMonthsThreshold;
     }
 
-
     public void notify(DocumentUploadedEvent event) {
         try {
-            List<String> activeDeviceTokens = getActiveDeviceTokens(userDao.getDeviceTokens(event.userId()));
+            List<Followers> followers = userDao.getFollowers(event.userId());
+
+            List<String> activeDeviceTokens = getActiveTokensForFollowers(followers);
             Documents document = documentDao.getById(event.documentId());
 
-            for (String token : activeDeviceTokens) {
-                try {
-                    firebaseNotificationService.sendNotification(token, NEW_DOCUMENT_NOTIFICATION_TITLE, document.getDescription());
-                } catch (Exception e) {
-                }
-            }
+            notifyDevices(activeDeviceTokens, document.getDescription());
         } catch (Exception e) {
+        }
+    }
+
+    private List<String> getActiveTokensForFollowers(List<Followers> followers) {
+        return followers.stream()
+                .flatMap(follower -> {
+                    try {
+                        return getActiveDeviceTokens(userDao.getDeviceTokens(follower.getUserId())).stream();
+                    } catch (ExecutionException | InterruptedException e) {
+                        return List.<String>of().stream();
+                    }
+                })
+                .toList();
+    }
+
+    private void notifyDevices(List<String> deviceTokens, String message) {
+        for (String token : deviceTokens) {
+            try {
+                firebaseNotificationService.sendNotification(token, NEW_DOCUMENT_NOTIFICATION_TITLE, message);
+            } catch (Exception e) {
+            }
         }
     }
 

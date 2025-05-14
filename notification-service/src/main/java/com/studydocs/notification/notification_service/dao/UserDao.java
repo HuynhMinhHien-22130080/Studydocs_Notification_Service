@@ -54,6 +54,7 @@ public class UserDao {
         return snapshot.getDocuments()
                 .stream()
                 .map(doc -> doc.toObject(Followers.class))
+                .filter(Followers::isNotifyOnNewPost)
                 .toList();
     }
 }
