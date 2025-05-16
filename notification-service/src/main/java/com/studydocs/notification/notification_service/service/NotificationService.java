@@ -1,13 +1,16 @@
 package com.studydocs.notification.notification_service.service;
 
-import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutureCallback;
-import com.google.api.core.ApiFutures;
+import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.MessagingErrorCode;
 import com.studydocs.notification.notification_service.dao.DocumentDao;
+import com.studydocs.notification.notification_service.dao.UserDao;
 import com.studydocs.notification.notification_service.model.entity.Documents;
 import com.studydocs.notification.notification_service.model.event.DocumentUploadedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 
 @Service
@@ -15,41 +18,36 @@ public class NotificationService {
     private static final String NEW_DOCUMENT_NOTIFICATION_TITLE = "Bài viết mới";
 
     private final FirebaseNotificationService firebaseNotificationService;
+    private final UserDao userDao;
     private final DocumentDao documentDao;
 
 
-    public NotificationService(FirebaseNotificationService firebaseNotificationService, DocumentDao documentDao) {
+    public NotificationService(FirebaseNotificationService firebaseNotificationService, UserDao userDao, DocumentDao documentDao) {
         this.firebaseNotificationService = firebaseNotificationService;
+        this.userDao = userDao;
         this.documentDao = documentDao;
     }
 
-        @Async
-        public void notify(DocumentUploadedEvent event) {
-            try {
-                Documents document = documentDao.getById(event.documentId());
-                ApiFuture<String> future = firebaseNotificationService.sendNotification(
-                        event.userId(),
-                        NEW_DOCUMENT_NOTIFICATION_TITLE,
-                        document.getDescription()
-                );
-                ApiFutures.addCallback(
-                        future,
-                        new ApiFutureCallback<>() {
-                            @Override
-                            public void onSuccess(String result) {
-                                // Không cần xử lý khi thành công
-                            }
-
-                            @Override
-                            public void onFailure(Throwable t) {
-                                // Xử lý lỗi khi gửi notification
-                            }
-                        },
-                        Runnable::run
-                );
-            } catch (Exception e) {
+    @Async
+    public void notify(DocumentUploadedEvent event) {
+        try {
+            Documents document = documentDao.getById(event.documentId());
+            Map<String, String[]> fcmTokens = userDao.getFCMTokensForNotifiableFollowers(event.userId());
+            for (Map.Entry<String, String[]> entry : fcmTokens.entrySet()) {
+                for (String token : entry.getValue()) {
+                    try {
+                        firebaseNotificationService.sendNotification(token, NEW_DOCUMENT_NOTIFICATION_TITLE, document.getDescription());
+                    } catch (FirebaseMessagingException e) {
+                        MessagingErrorCode errorCode = e.getMessagingErrorCode();
+                        if (errorCode == MessagingErrorCode.UNREGISTERED) {
+                            userDao.removeFCMToken(entry.getKey(), token);
+                        }
+                    }
+                }
             }
+        } catch (ExecutionException | InterruptedException e) {
         }
+    }
 
 
 }
