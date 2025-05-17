@@ -5,6 +5,7 @@ import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.FieldValue;
 import com.google.cloud.firestore.Firestore;
 import com.studydocs.notification.notification_service.model.entity.Follower;
+import com.studydocs.notification.notification_service.model.entity.Notifications;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -18,7 +19,7 @@ public class UserDao {
     private static final String USERS_COLLECTION = "users"; // Tên collection chính chứa user
     private static final String FOLLOWERS_COLLECTION = "followers"; // Tên subcollection chứa danh sách follower dạng sharded
     private static final String FOLLOWING_COLLECTION_PREFIX = "following_"; // Prefix cho subcollection following (theo từng shard)
-
+    private static final String NOTIFICATION_COLLECTION = "notifications";
     private final Firestore firestore;
 
     public UserDao(Firestore firestore) {
@@ -28,6 +29,12 @@ public class UserDao {
     // Trả về DocumentReference của một user cụ thể
     private DocumentReference getUserDocumentReference(String userId) {
         return firestore.collection(USERS_COLLECTION).document(userId);
+    }
+    //Thêm Notification cho từng user được thông báo
+    public void addNotification(String userId, Notifications notification) {
+        DocumentReference userDocumentRef = getUserDocumentReference(userId);
+        DocumentReference notificationDocumentRef = userDocumentRef.collection(NOTIFICATION_COLLECTION).document();
+        notificationDocumentRef.set(notification);
     }
 
     // Xoá token FCM khỏi danh sách fcmToken của user
@@ -91,7 +98,7 @@ public class UserDao {
                     .get()
                     .get();
             if (snapshot.exists()) {
-                return Boolean.TRUE.equals(snapshot.getBoolean("needNotify")); // Nếu có và bật notify thì trả về true
+                return Boolean.TRUE.equals(snapshot.getBoolean("notifyEnable")); // Nếu có và bật notify thì trả về true
             }
         }
         return false; // Nếu không tìm thấy followee hoặc không bật notify
