@@ -5,6 +5,7 @@ import com.google.firebase.messaging.MessagingErrorCode;
 import com.studydocs.notification.notification_service.dao.DocumentDao;
 import com.studydocs.notification.notification_service.dao.UserDao;
 import com.studydocs.notification.notification_service.model.entity.Documents;
+import com.studydocs.notification.notification_service.model.entity.Notifications;
 import com.studydocs.notification.notification_service.model.event.DocumentUploadedEvent;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -34,9 +35,19 @@ public class NotificationService {
             Documents document = documentDao.getById(event.documentId());
             Map<String, String[]> fcmTokens = userDao.getFCMTokensForNotifiableFollowers(event.userId());
             for (Map.Entry<String, String[]> entry : fcmTokens.entrySet()) {
+                //Tạo notification
+                Notifications notifications = Notifications.builder()
+                        .senderId(event.userId())
+                        .documentId(event.documentId())
+                        .type("new_document")
+                        .title(NEW_DOCUMENT_NOTIFICATION_TITLE)
+                        .message(document.getDescription())
+                        .build();
+                userDao.addNotification(entry.getKey(), notifications);
+                //Gửi FCM Token
                 for (String token : entry.getValue()) {
                     try {
-                        firebaseNotificationService.sendNotification(token, NEW_DOCUMENT_NOTIFICATION_TITLE, document.getDescription());
+                        firebaseNotificationService.sendNotification(token, NEW_DOCUMENT_NOTIFICATION_TITLE, notifications.getMessage());
                     } catch (FirebaseMessagingException e) {
                         MessagingErrorCode errorCode = e.getMessagingErrorCode();
                         if (errorCode == MessagingErrorCode.UNREGISTERED) {
