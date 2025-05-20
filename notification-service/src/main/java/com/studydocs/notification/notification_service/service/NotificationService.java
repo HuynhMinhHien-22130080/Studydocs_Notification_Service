@@ -46,9 +46,11 @@ public class NotificationService {
             logger.info("Gửi thông báo cho {} follower của docId={}", fcmTokens.size(), event.documentId());
             
             for (Map.Entry<String, String[]> entry : fcmTokens.entrySet()) {
+
                 String followerId = entry.getKey();
                 String[] tokens = entry.getValue();
                 
+
                 //Tạo notification
                 Notifications notifications = Notifications.builder()
                         .senderId(event.userId())
@@ -57,6 +59,7 @@ public class NotificationService {
                         .title(NEW_DOCUMENT_NOTIFICATION_TITLE)
                         .message(document.getDescription())
                         .build();
+              
                 userDao.addNotification(followerId, notifications);
                 
                 //Gửi FCM Token
